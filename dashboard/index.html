@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="VyomaCast — Real-time news clustering dashboard with live WebSocket updates." />
+
+  <title>VyomaCast Dashboard</title>
+
+  <!-- Google Fonts: Inter + JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap"
+    rel="stylesheet"
+  />
+
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- ═══════════════ Header ═══════════════ -->
+  <header class="header" id="header">
+    <div class="header__brand">
+      <div class="header__logo">N</div>
+      <h1 class="header__title">VyomaCast</h1>
+    </div>
+
+    <div class="header__meta">
+      <div class="header__stats">
+        <span>Clusters: <span class="stat-value" id="stat-clusters">0</span></span>
+        <span>Articles: <span class="stat-value" id="stat-articles">0</span></span>
+      </div>
+
+      <div class="ws-status ws-status--disconnected" id="ws-status">
+        <span class="ws-status__dot" id="ws-status-dot"></span>
+        <span id="ws-status-label">Offline</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ═══════════════ Main Content ═══════════════ -->
+  <main class="main">
+    <div class="cluster-grid" id="cluster-grid">
+      <!-- Cards are rendered dynamically by app.js -->
+    </div>
+  </main>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

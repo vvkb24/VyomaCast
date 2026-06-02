@@ -1,0 +1,71 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Environments
+.env
+.env.local
+.venv
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDEs and OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Docker / Container specifics
+# Do not commit massive database or message volumes
+.docker/
+docker_data/
+nats_data/
+postgres_data/
+
+# ML Models and Embeddings
+# Ignore sentence-transformers / huggingface model cache to prevent massive commits
+.cache/
+huggingface/
+sentence_transformers/
+models/
+*.bin
+*.safetensors
+*.pt
+*.onnx
+
+# Testing and coverage
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.smd
+.hypothesis/
+.pytest_cache/
+pytestdebug.log

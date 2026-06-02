@@ -1,0 +1,81 @@
+# ============================================================
+# VyomaCast — Docker Compose (Development)
+# ============================================================
+# Services:
+#   postgres  — PostgreSQL 16 with pgvector extension
+#   redis     — Redis 7 with volatile-lru eviction (768 MB)
+#   nats      — NATS with JetStream enabled
+#
+# Host ports are offset from defaults to avoid collisions with
+# locally-installed services:
+#   Postgres: 5433 (not 5432)
+#   Redis:    6380 (not 6379)
+#   NATS:     4223 (not 4222)
+#
+# Usage:
+#   docker compose up -d
+#   python scripts/check_infra.py   # verify all services
+#   docker compose down -v           # teardown + volumes
+# ============================================================
+
+services:
+  # ── PostgreSQL 16 + pgvector ─────────────────────────────────
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: vyomacast-postgres
+    restart: unless-stopped
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: vyomacast
+      POSTGRES_PASSWORD: vyomacast
+      POSTGRES_DB: vyomacast
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./scripts/init_pgvector.sql:/docker-entrypoint-initdb.d/01_init_pgvector.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vyomacast -d vyomacast"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  # ── Redis 7 (volatile-lru, 768 MB) ──────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: vyomacast-redis
+    restart: unless-stopped
+    ports:
+      - "6380:6379"
+    command: >
+      redis-server
+      --maxmemory 768mb
+      --maxmemory-policy volatile-lru
+      --save ""
+      --appendonly no
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  # ── NATS with JetStream ─────────────────────────────────────
+  nats:
+    image: nats:2-alpine
+    container_name: vyomacast-nats
+    restart: unless-stopped
+    ports:
+      - "4223:4222"   # Client connections
+      - "8223:8222"   # HTTP monitoring
+    command: "--js --http_port 8222"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--quiet", "http://localhost:8222/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+volumes:
+  pgdata:
+    driver: local
