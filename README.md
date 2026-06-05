@@ -1,6 +1,15 @@
 # VyomaCast
 
 **VyomaCast is a real-time, event-driven news clustering engine.** It autonomously ingests RSS feeds, deduplicates syndicated content using a two-stage lexical and semantic pipeline, and broadcasts clustered storylines to a real-time WebSocket dashboard.
+---
+
+## Why "VyomaCast"?
+
+**Vyoma** (व्योम) is a Sanskrit word translating to *sky*, *space*, or *the boundless expanse*. **Cast** represents the real-time transmission and broadcasting of data. 
+
+In the modern digital age, raw information is chaotic and limitless. 
+**VyomaCast** embodies the system's core architectural mission: capturing data from the vast, unstructured universe of global news, structurally clustering it, and streaming it into a clear, intelligent, and unified real-time broadcast.
+
 
 ---
 
