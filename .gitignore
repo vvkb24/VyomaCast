@@ -26,6 +26,10 @@ MANIFEST
 rename_project.py
 graphify-out/
 
+# Local Development & AI Agent Rules
+docs/
+.agents/
+
 # Environments
 .env
 .env.local
