@@ -103,7 +103,7 @@ Navigate to `http://localhost:8080` to watch clusters form in real-time as the f
 
 ---
 
-## 🛣 Roadmap (Phase 2)
+## 🛣 Roadmap (Phase 2- UpComing)
 
 With the foundational pipeline and data integrity locked in, Phase 2 will introduce AI-native consumption features:
 
