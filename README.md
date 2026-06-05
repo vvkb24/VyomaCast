@@ -109,3 +109,13 @@ With the foundational pipeline and data integrity locked in, Phase 2 will introd
 
 * **Local LLM Summarization:** Auto-generating concise, unbiased summaries for active story clusters as they evolve.
 * **LiveKit WebRTC Voice Agents:** Connecting VyomaCast to interactive, conversational AI agents allowing users to "talk" to the news stream in real-time.
+
+---
+
+## 📄 License
+
+This project is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**.
+
+> [!WARNING]
+> Commercial use, proprietary modifications, or hosting this software as a commercial cloud service requires a commercial license. For licensing inquiries, please contact the author.
+
