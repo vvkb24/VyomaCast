@@ -23,7 +23,7 @@ share/python-wheels/
 MANIFEST
 
 # Local Development & Notes
-rename_project.md
+rename_project.py
 graphify-out/
 
 # Environments
