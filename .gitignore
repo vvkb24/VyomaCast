@@ -22,6 +22,10 @@ share/python-wheels/
 *.egg
 MANIFEST
 
+# Local Development & Notes
+rename_project.md
+graphify-out/
+
 # Environments
 .env
 .env.local
