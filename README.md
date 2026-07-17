@@ -6,9 +6,14 @@
 
 ![VyomaCast Dashboard](Sample.png)
 
-*The VyomaCast live dashboard — clusters forming in real-time, live WebSocket indicator, Newsreader serif headlines on a white cloud theme.*
+*The VyomaCast live dashboard — header with live connection indicator, Clusters and Articles counts.*
+
+![VyomaCast Dashboard Grid](Sample1.png)
+
+*Full cluster grid — 537 clusters, 566 articles, all updating in real-time without page refresh.*
 
 ---
+
 
 ## Why "VyomaCast"?
 
