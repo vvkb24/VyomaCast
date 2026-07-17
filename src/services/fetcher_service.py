@@ -47,6 +47,19 @@ class FetcherService:
     def _hash_url(self, url: str) -> str:
         return hashlib.sha256(url.encode("utf-8")).hexdigest()
 
+    async def process_article(self, url: str, feed_id: Optional[UUID] = None) -> None:
+        """Fetch HTML, extract text, and publish completion for a single article URL."""
+        timeout = aiohttp.ClientTimeout(total=10.0)
+        headers = {
+            "User-Agent": "VyomaCastBot/1.0 (+https://github.com/vyomacast/vyomacast)"
+        }
+        connector = aiohttp.TCPConnector(ssl=False)
+        async with aiohttp.ClientSession(
+            timeout=timeout, headers=headers, connector=connector
+        ) as session:
+            url_hash = self._hash_url(url)
+            await self._process_article(session, url, url_hash, feed_id)
+
     async def process_feed(self, feed_url: str, feed_id: Optional[UUID] = None) -> None:
         """Fetch RSS XML, parse links, and spawn extraction for top N items."""
         timeout = aiohttp.ClientTimeout(total=10.0)

@@ -38,6 +38,8 @@ async def run_worker() -> None:
 
     fetcher_service = FetcherService(_bus)
 
+    from src.domain.events import FeedItemsNewPayload
+
     async def _handle_feed_process_command(envelope: EventEnvelope) -> None:
         try:
             payload = envelope.parse_payload(FeedProcessCommandPayload)
@@ -51,12 +53,29 @@ async def run_worker() -> None:
         # which logs and correctly triggers `msg.nak()` for JetStream redelivery.
         await fetcher_service.process_feed(payload.feed_url, payload.feed_id)
 
+    async def _handle_feed_items_new(envelope: EventEnvelope) -> None:
+        try:
+            payload = envelope.parse_payload(FeedItemsNewPayload)
+        except ValidationError as e:
+            logger.error("Invalid data schema: %s", e)
+            raise PermanentError("Poison pill schema") from e
+        
+        logger.info("Executing FEED_ITEMS_NEW for %s", payload.item_url)
+        await fetcher_service.process_article(payload.item_url, payload.feed_id)
+
     # Note: Use queue_group to ensure load balancing across replicas
     await _bus.subscribe(
         subject=EventType.FEED_PROCESS_COMMAND,
         handler=_handle_feed_process_command,
         queue_group="fetcher_workers",
         durable_name="fetcher_workers",
+    )
+
+    await _bus.subscribe(
+        subject=EventType.FEED_ITEMS_NEW,
+        handler=_handle_feed_items_new,
+        queue_group="fetcher_workers_items_new",
+        durable_name="fetcher_workers_items_new",
     )
 
     logger.info("Fetcher worker ready. Listening on %s...", EventType.FEED_PROCESS_COMMAND)
