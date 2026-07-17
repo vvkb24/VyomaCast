@@ -2,17 +2,7 @@
 
 **VyomaCast is a real-time, event-driven news clustering engine.** It autonomously ingests RSS feeds, deduplicates syndicated content using a two-stage lexical and semantic pipeline, and broadcasts clustered storylines to a live, self-updating WebSocket dashboard.
 
----
 
-![VyomaCast Dashboard](Sample.png)
-
-*The VyomaCast live dashboard — header with live connection indicator, Clusters and Articles counts.*
-
-![VyomaCast Dashboard Grid](Sample1.png)
-
-*Full cluster grid — 537 clusters, 566 articles, all updating in real-time without page refresh.*
-
----
 
 
 ## Why "VyomaCast"?
@@ -198,6 +188,21 @@ With the foundational pipeline and data integrity locked in, Phase 2 will introd
 - **LiveKit WebRTC Voice Agents** — Connecting VyomaCast to conversational AI agents allowing users to "talk" to the news stream in real-time.
 - **Prometheus + Grafana** — Full pipeline observability with throughput, latency, and error-rate dashboards.
 - **Cluster Decay Worker** — Exponential decay scoring to retire stale clusters automatically.
+
+---
+
+
+
+
+---
+
+![VyomaCast Dashboard](Sample.png)
+
+*The VyomaCast live dashboard — header with live connection indicator, Clusters and Articles counts.*
+
+![VyomaCast Dashboard Grid](Sample1.png)
+
+*Full cluster grid — 537 clusters, 566 articles, all updating in real-time without page refresh.*
 
 ---
 
