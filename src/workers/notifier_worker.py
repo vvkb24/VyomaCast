@@ -48,6 +48,7 @@ async def run_notifier(
         """Process cluster events and fanout to websockets."""
         try:
             payload = envelope.parse_payload(ArticleClusteredPayload)
+            logger.info("Notifier received article clustered event: %s", payload.title)
                 
         except ValidationError as e:
             logger.error("Invalid data schema: %s", e)
@@ -73,10 +74,15 @@ async def run_notifier(
         handler=_handle_article_clustered,
         queue_group="vyomacast_notifier",
         durable_name="vyomacast_notifier",
+        deliver_policy="new",
     )
-    logger.info("Subscribed to %s", EventType.ARTICLE_CLUSTERED.value)
+    logger.info("Subscribed to %s (deliver_policy=new)", EventType.ARTICLE_CLUSTERED.value)
 
-    # We yield control back to the caller instead of blocking forever if we are running
-    # simply as an initialization step (FastAPI lifespan). If we are a standalone worker,
-    # it would loop. However, since NATS JetStream handlers are async tasks, just returning
-    # is sufficient if the event loop remains open.
+    # Keep the task and NatsEventBus connection alive indefinitely
+    try:
+        while True:
+            await asyncio.sleep(3600)
+    except asyncio.CancelledError:
+        logger.info("Notifier loop cancelled. Shutting down NATS connection...")
+    finally:
+        await bus.disconnect()

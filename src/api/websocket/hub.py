@@ -76,14 +76,29 @@ ws_router = APIRouter()
 
 @ws_router.websocket("/ws/updates")
 async def websocket_updates(websocket: WebSocket) -> None:
-    """Real-time cluster updates endpoint."""
+    """Real-time cluster updates endpoint.
+
+    Keeps the connection open with a server-side ping every 20 seconds.
+    The browser does not need to send anything to stay connected.
+    """
     await manager.connect(websocket)
     try:
         while True:
-            # Strictly wait for client disconnect or incoming heartbeats
-            await websocket.receive_text()
+            # Send a lightweight server-side ping every 20 seconds to
+            # keep the connection alive. The browser can ignore it.
+            await asyncio.sleep(20)
+            try:
+                await asyncio.wait_for(
+                    websocket.send_json({"event": "ping"}), timeout=5.0
+                )
+            except (asyncio.TimeoutError, Exception):
+                # Connection is gone - stop the loop
+                break
     except WebSocketDisconnect:
-        await manager.disconnect(websocket)
+        pass
+    except asyncio.CancelledError:
+        pass
     except Exception as e:
         logger.error("WebSocket unhandled error: %s", e)
+    finally:
         await manager.disconnect(websocket)

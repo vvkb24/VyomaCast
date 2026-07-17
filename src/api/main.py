@@ -35,11 +35,21 @@ from src.workers.notifier_worker import run_notifier
 
 logger = logging.getLogger(__name__)
 
+async def run_notifier_safe():
+    import traceback
+    try:
+        print("[LIFESPAN] Starting notifier...")
+        await run_notifier()
+        print("[LIFESPAN] Notifier running successfully!")
+    except Exception as e:
+        print(f"[LIFESPAN] Notifier failed to start: {e}")
+        traceback.print_exc()
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifecycle hook for starting background API workers."""
     # Start the broadcast notifier task in the background
-    notifier_task = asyncio.create_task(run_notifier())
+    notifier_task = asyncio.create_task(run_notifier_safe())
     yield
     # Shutdown
     notifier_task.cancel()

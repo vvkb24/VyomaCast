@@ -260,6 +260,8 @@ function connectWebSocket() {
   ws.onmessage = (event) => {
     try {
       const msg = JSON.parse(event.data);
+      // Ignore server-side keepalive pings
+      if (msg.event === 'ping') return;
       if (msg.event === 'cluster_update') {
         handleClusterUpdate(msg.data);
       }

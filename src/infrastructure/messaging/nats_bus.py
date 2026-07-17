@@ -115,8 +115,17 @@ class NatsEventBus(EventBus):
         *,
         queue_group: Optional[str] = None,
         durable_name: Optional[str] = None,
+        deliver_policy: str = "all",
     ) -> None:
         """Subscribe to a subject with constrained redelivery limits."""
+
+        from nats.js.api import DeliverPolicy
+        _policy_map = {
+            "all": DeliverPolicy.ALL,
+            "new": DeliverPolicy.NEW,
+            "last": DeliverPolicy.LAST,
+        }
+        policy = _policy_map.get(deliver_policy, DeliverPolicy.ALL)
 
         async def _wrapper_cb(msg: Msg) -> None:
             await self._message_handler(msg, handler)
@@ -130,6 +139,7 @@ class NatsEventBus(EventBus):
                 ack_wait=120.0,    # 120 seconds before JetStream redelivers an un-ACKed message
                 max_deliver=5,     # Prevent infinite loop of redeliveries (DLQ trigger)
                 deliver_group=queue_group,
+                deliver_policy=policy,
             ),
         )
         self._subs[subject] = sub
