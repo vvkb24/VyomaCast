@@ -69,9 +69,3 @@ This conclusively proves that the deduplication layer acts as a highly effective
 
 ---
 
-## 🚀 Resume Bullet Points (For the Developer)
-If you are adding this project to your resume, here are a few ways you can phrase these engineering achievements:
-
-* *"Architected an event-driven NLP pipeline using Python and NATS, achieving a throughput of 490 articles/second with sub-2ms latency by optimizing core algorithms and utilizing in-memory caching."*
-* *"Implemented SimHash-based near-duplicate detection, successfully filtering 99.9% of synthetic spam payloads in benchmark tests to protect downstream vector database performance."*
-* *"Designed heavily decoupled microservices using Dependency Injection, enabling high-speed isolated benchmarking of business logic using in-memory mock repositories and event buses."*
