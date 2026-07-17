@@ -69,7 +69,7 @@ async def run_notifier(
         await manager.broadcast(lightweight_payload)
 
     await bus.subscribe(
-        subject=f"events.{EventType.ARTICLE_CLUSTERED.value}",
+        subject=EventType.ARTICLE_CLUSTERED,
         handler=_handle_article_clustered,
         queue_group="vyomacast_notifier",
         durable_name="vyomacast_notifier",
