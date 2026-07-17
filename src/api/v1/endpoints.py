@@ -155,3 +155,30 @@ async def get_cluster_details(
         updated_at=cluster.updated_at,
         articles=articles,
     )
+
+# ────────────────────────────────────────────────────────────────────────────
+# Stats Endpoints
+# ────────────────────────────────────────────────────────────────────────────
+
+from fastapi import Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text
+from src.api.dependencies import get_session
+
+class StatsResponse(BaseModel):
+    total_articles: int
+    total_clusters: int
+
+@router.get("/stats", response_model=StatsResponse)
+async def get_system_stats(
+    session: AsyncSession = Depends(get_session),
+):
+    """Retrieve absolute database-wide metrics (not limited to active hot memory)."""
+    res_art = await session.execute(text("SELECT count(*) FROM articles;"))
+    total_articles = res_art.scalar() or 0
+    res_cl = await session.execute(text("SELECT count(*) FROM clusters;"))
+    total_clusters = res_cl.scalar() or 0
+    return StatsResponse(
+        total_articles=total_articles,
+        total_clusters=total_clusters
+    )

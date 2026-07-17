@@ -25,6 +25,8 @@ const processedArticles = new Set();
 let ws = null;
 let reconnectAttempts = 0;
 let reconnectTimer = null;
+let actualClusters = 0;
+let actualArticles = 0;
 
 // ── DOM References ─────────────────────────────────────────────────────────
 const dom = {
@@ -40,6 +42,7 @@ const dom = {
 document.addEventListener('DOMContentLoaded', () => {
   renderSkeletons(6);
   fetchInitialClusters();
+  fetchStats();
   connectWebSocket();
 
   // Live timestamp updates
@@ -76,6 +79,20 @@ async function fetchInitialClusters() {
     console.error('[VyomaCast] Failed to fetch clusters:', err);
     // API Failure Handling with retry fallback
     renderEmptyState('Unable to load data', true);
+  }
+}
+
+// ── API: Fetch System Stats ────────────────────────────────────────────────
+async function fetchStats() {
+  try {
+    const res = await fetch(`${CONFIG.API_BASE}/stats`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    actualArticles = data.total_articles;
+    actualClusters = data.total_clusters;
+    updateHeaderStats();
+  } catch (err) {
+    console.error('[VyomaCast] Failed to fetch stats:', err);
   }
 }
 
@@ -315,6 +332,8 @@ function handleClusterUpdate(data) {
   const now = new Date().toISOString();
 
   if (is_new_cluster) {
+    actualClusters++;
+    actualArticles++;
     // Create a brand new cluster entry
     const newCluster = {
       id: cluster_id,
@@ -349,6 +368,7 @@ function handleClusterUpdate(data) {
       existing.article_count += 1;
       existing.updated_at = now;
       existing.last_ws_update = now;
+      actualArticles++;
 
       // Add source_domain if not already tracked
       if (source_domain && !existing.top_sources.includes(source_domain)) {
@@ -432,12 +452,8 @@ function moveCardToFront(clusterId) {
 
 // ── Header Stats ───────────────────────────────────────────────────────────
 function updateHeaderStats() {
-  dom.clusterCount.textContent = clusterStore.size;
-  let totalArticles = 0;
-  for (const c of clusterStore.values()) {
-    totalArticles += c.article_count;
-  }
-  dom.articleCount.textContent = totalArticles;
+  dom.clusterCount.textContent = actualClusters;
+  dom.articleCount.textContent = actualArticles;
 }
 
 // ── Live Timestamps ────────────────────────────────────────────────────────
