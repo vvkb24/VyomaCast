@@ -114,23 +114,27 @@ async def run_benchmark(count: int) -> None:
     # Distribute articles across ~10 topic clusters for realistic merging
     num_clusters = max(1, count // 10)
 
-    # Pre-generate all payloads to exclude generation time from measurement
-    payloads: list[tuple[ExtractCompletedPayload, list[float]]] = []
-    for i in range(count):
-        cluster_group = i % num_clusters
-        payloads.append(_generate_payload(i, cluster_group))
+    # Distribute articles across ~10 topic clusters for realistic merging
+    num_clusters = max(1, count // 10)
 
-    print(f"  Generated {count} synthetic articles across {num_clusters} topic groups")
+    print(f"  Generating and processing {count} synthetic articles on the fly...")
+    print(f"  Across {num_clusters} topic groups")
     print(f"  Running pipeline...\n")
 
     latencies_ms: list[float] = []
     dedup_latencies_ms: list[float] = []
     cluster_latencies_ms: list[float] = []
     errors = 0
+    new_clusters = 0
+    merged_into = 0
 
     wall_start = time.perf_counter()
 
-    for idx, (payload, embedding) in enumerate(payloads):
+    for idx in range(count):
+        # Generate payload dynamically to save RAM
+        cluster_group = idx % num_clusters
+        payload, embedding = _generate_payload(idx, cluster_group)
+        
         t0 = time.perf_counter()
 
         try:
@@ -151,6 +155,17 @@ async def run_benchmark(count: int) -> None:
                 await cluster_svc.process_article(unique_payload)
                 t_cluster_end = time.perf_counter()
                 cluster_latencies_ms.append((t_cluster_end - t_cluster_start) * 1000)
+                
+            # Count cluster actions generated in THIS iteration
+            clustered_events = bus.get_events(EventType.ARTICLE_CLUSTERED)
+            for e in clustered_events:
+                if e.payload.get("is_new_cluster", False):
+                    new_clusters += 1
+                else:
+                    merged_into += 1
+                    
+            # CRITICAL: Clear the bus to prevent memory leak and O(N^2) search times
+            bus.clear()
 
         except Exception as e:
             errors += 1
@@ -160,8 +175,8 @@ async def run_benchmark(count: int) -> None:
         t1 = time.perf_counter()
         latencies_ms.append((t1 - t0) * 1000)
 
-        # Progress indicator every 25%
-        if count >= 20 and (idx + 1) % (count // 4) == 0:
+        # Progress indicator every 10%
+        if count >= 10 and (idx + 1) % (count // 10) == 0:
             pct = ((idx + 1) / count) * 100
             print(f"  [{pct:5.1f}%] Processed {idx + 1}/{count} articles...")
 
@@ -184,14 +199,6 @@ async def run_benchmark(count: int) -> None:
     # Stage-level breakdowns
     dedup_p50 = sorted(dedup_latencies_ms)[int(len(dedup_latencies_ms) * 0.50)] if dedup_latencies_ms else 0
     cluster_p50 = sorted(cluster_latencies_ms)[int(len(cluster_latencies_ms) * 0.50)] if cluster_latencies_ms else 0
-
-    # Count clusters created
-    clustered_events = bus.get_events(EventType.ARTICLE_CLUSTERED)
-    new_clusters = sum(
-        1 for e in clustered_events
-        if e.payload.get("is_new_cluster", False)
-    )
-    merged_into = len(clustered_events) - new_clusters
 
     # -- Output --
 
