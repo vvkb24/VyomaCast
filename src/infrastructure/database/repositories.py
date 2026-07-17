@@ -557,11 +557,12 @@ class PgFeedRepository(FeedRepository):
 
     @override
     async def get_due_for_poll(self, *, limit: int = 50) -> list[Feed]:
+        from datetime import UTC, datetime
         async with self._session_factory() as session:
             result = await session.execute(
                 select(FeedRow)
                 .where(FeedRow.status == FeedStatus.ACTIVE.value)
-                .where(FeedRow.next_poll_at <= func.now())
+                .where(FeedRow.next_poll_at <= datetime.now(UTC))
                 .order_by(FeedRow.next_poll_at.asc())
                 .limit(limit)
             )

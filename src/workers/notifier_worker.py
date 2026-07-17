@@ -33,7 +33,12 @@ async def run_notifier(
     bus = bus or NatsEventBus()
     
     try:
-        if not bus.client.is_connected:  # type: ignore
+        try:
+            connected = bus.nc.is_connected
+        except RuntimeError:
+            connected = False
+
+        if not connected:
             await bus.connect()
     except Exception as e:
         logger.critical("Failed to connect to NATS: %s", e)

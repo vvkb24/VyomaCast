@@ -7,8 +7,6 @@ import re
 from datetime import UTC, datetime
 from typing import Optional
 
-from sentence_transformers import SentenceTransformer
-
 from src.config import settings
 from src.domain.events import (
     ArticleDuplicatePayload,
@@ -23,9 +21,25 @@ from src.infrastructure.database.repositories import ArticleRepository
 
 logger = logging.getLogger(__name__)
 
-# Model goes global to avoid huge initialisation penalty per request/worker
-MODEL_NAME = "all-MiniLM-L6-v2"
-model = SentenceTransformer(MODEL_NAME, device="cpu")
+
+class LazyModelProxy:
+    """A proxy that lazy-loads the SentenceTransformer model on first call.
+
+    Maintains backwards compatibility with unit/integration test patches.
+    """
+
+    _instance = None
+
+    def encode(self, *args, **kwargs):
+        if self._instance is None:
+            logger.info("Lazy-loading SentenceTransformer model: all-MiniLM-L6-v2")
+            from sentence_transformers import SentenceTransformer
+
+            self._instance = SentenceTransformer("all-MiniLM-L6-v2", device="cpu")
+        return self._instance.encode(*args, **kwargs)
+
+
+model = LazyModelProxy()
 
 
 class DedupService:
@@ -94,7 +108,10 @@ class DedupService:
             embeds = await asyncio.to_thread(
                 model.encode, text, max_length=512, truncation=True
             )
-            return embeds.tolist()
+            res = embeds.tolist()
+            if res and isinstance(res[0], list):
+                res = res[0]
+            return res
         except Exception as e:
             logger.warning("Embedding generation failed: %s", e)
             return None

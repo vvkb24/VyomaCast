@@ -162,7 +162,8 @@ class ClusterService:
             
             return saved_cluster
 
-        if session_factory:
+        from sqlalchemy.ext.asyncio import async_sessionmaker
+        if session_factory and isinstance(session_factory, async_sessionmaker):
             async with session_factory() as session:
                 async with session.begin():
                     saved_cluster = await _save_transaction(session)

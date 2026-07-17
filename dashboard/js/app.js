@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // ── API: Fetch Initial Clusters ────────────────────────────────────────────
 async function fetchInitialClusters() {
   try {
-    const res = await fetch(`${CONFIG.API_BASE}/clusters?limit=100&offset=0`);
+    const res = await fetch(`${CONFIG.API_BASE}/clusters?limit=300&offset=0`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const clusters = await res.json();
 

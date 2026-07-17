@@ -14,8 +14,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Worker entry point for the Real-Time Clustering Engine."""
-
+"""Worker entry point for continuous feed polling."""
 
 import asyncio
 import logging
@@ -23,80 +22,54 @@ import signal
 import sys
 from typing import Any, Optional
 
-from pydantic import ValidationError
-
-from src.domain.events import EventEnvelope, EventType, ArticleUniquePayload
-from src.domain.exceptions import PermanentError
-from src.infrastructure.cache.redis_cache import RedisCacheStore
 from src.infrastructure.database.engine import create_db_engine, create_session_factory
-from src.infrastructure.database.repositories import PgArticleRepository, PgClusterRepository
+from src.infrastructure.database.repositories import PgFeedRepository
 from src.infrastructure.messaging.nats_bus import NatsEventBus
-from src.services.cluster_service import ClusterService
+from src.infrastructure.http.aiohttp_fetcher import AioHttpFetcher
+from src.services.feed_manager import FeedManager
 
 logger = logging.getLogger(__name__)
 
 _bus: Optional[NatsEventBus] = None
-_cache: Optional[RedisCacheStore] = None
+_fetcher: Optional[AioHttpFetcher] = None
 
 
 async def run_worker() -> None:
-    """Initialize dependencies and subscribe to ArticleUnique events."""
+    """Initialize dependencies and run the FeedManager loop."""
     logging.basicConfig(
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
-    logger.info("Starting Clustering Engine Worker...")
+    logger.info("Starting Feed Manager Worker...")
 
-    global _bus, _cache
+    global _bus, _fetcher
     _bus = NatsEventBus()
-    _cache = RedisCacheStore()
+    _fetcher = AioHttpFetcher()
 
     try:
         await _bus.connect()
-        await _cache.connect()
     except Exception as e:
-        logger.critical("Failed to connect to Infrastructure: %s", e)
+        logger.critical("Failed to connect to NATS: %s", e)
         sys.exit(1)
 
     engine = create_db_engine()
     session_maker = create_session_factory(engine)
-    article_repo = PgArticleRepository(session_maker)
-    cluster_repo = PgClusterRepository(session_maker)
+    feed_repo = PgFeedRepository(session_maker)
 
-    cluster_service = ClusterService(_cache, cluster_repo, article_repo, _bus)
-
-    async def _handle_article_unique(envelope: EventEnvelope) -> None:
-        """Parse NATS payload and execute clustering logic."""
-        try:
-            payload = envelope.parse_payload(ArticleUniquePayload)
-        except ValidationError as e:
-            logger.error("Invalid data schema: %s", e)
-            raise PermanentError("Poison pill schema") from e
-
-        logger.info("Evaluating uniqueness for article clustering: %s", payload.url_hash)
-        
-        # Any RetryableError thrown (e.g. Optimistic Concurrency) bubbles to NATS for redelivery 
-        # PermanentError (e.g. invalid embeddings) delegates to TERM signal.
-        await cluster_service.process_article(payload)
-
-    # Note: Use queue_group to ensure load balancing across replicas identically to Task 6 architecture constraints
-    await _bus.subscribe(
-        subject=EventType.ARTICLE_UNIQUE,
-        handler=_handle_article_unique,
-        queue_group="cluster_workers",
-        durable_name="cluster_workers",
+    manager = FeedManager(
+        feed_repo=feed_repo,
+        event_bus=_bus,
+        http_fetcher=_fetcher,
+        poll_interval=60,
     )
 
-    logger.info("Cluster worker ready. Listening on %s...", EventType.ARTICLE_UNIQUE)
-    
     try:
-        while True:
-            await asyncio.sleep(3600)
+        await manager.run()
     except asyncio.CancelledError:
-        logger.info("Worker run loop cancelled. Shutting down gracefully...")
+        logger.info("Feed Manager loop cancelled. Shutting down gracefully...")
     finally:
         await _bus.disconnect()
-        await _cache.disconnect()
+        await _fetcher.close()
 
 
 def handle_sigterm(sig: int, frame: Any) -> None:
@@ -110,7 +83,7 @@ def handle_sigterm(sig: int, frame: Any) -> None:
 if __name__ == "__main__":
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    
+
     if sys.platform != "win32":
         loop.add_signal_handler(signal.SIGINT, lambda: handle_sigterm(signal.SIGINT, None))
         loop.add_signal_handler(signal.SIGTERM, lambda: handle_sigterm(signal.SIGTERM, None))

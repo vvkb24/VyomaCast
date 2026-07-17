@@ -56,7 +56,10 @@ class FetcherService:
             "User-Agent": "VyomaCastBot/1.0 (+https://github.com/vyomacast/vyomacast)"
         }
 
-        async with aiohttp.ClientSession(timeout=timeout, headers=headers) as session:
+        connector = aiohttp.TCPConnector(ssl=False)
+        async with aiohttp.ClientSession(
+            timeout=timeout, headers=headers, connector=connector
+        ) as session:
             try:
                 # 1. Fetch RSS XML
                 async with session.get(feed_url) as resp:
@@ -161,11 +164,33 @@ class FetcherService:
             authors = [a.strip() for a in extracted["author"].split(";") if a.strip()]
 
         # 4. Success — publish EXTRACT_COMPLETED to be picked up by Dedup Engine
+        title = extracted.get("title")
+        if not title or not title.strip():
+            import re
+            import html as html_lib
+            og_match = re.search(
+                r'<meta[^>]+property=["\']og:title["\'][^>]+content=["\']([^"\']+)["\']',
+                html_content,
+            ) or re.search(
+                r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:title["\']',
+                html_content,
+            )
+            if og_match:
+                title = html_lib.unescape(og_match.group(1).strip())
+            else:
+                title_match = re.search(
+                    r'<title[^>]*>(.*?)</title>',
+                    html_content,
+                    re.IGNORECASE | re.DOTALL,
+                )
+                if title_match:
+                    title = html_lib.unescape(title_match.group(1).strip())
+
         payload = ExtractCompletedPayload(
             url=url,
             url_hash=url_hash,
             feed_id=feed_id,
-            title=extracted.get("title") or "Unknown Title",
+            title=title or "Unknown Title",
             content=content,
             content_length=len(content),
             authors=authors,

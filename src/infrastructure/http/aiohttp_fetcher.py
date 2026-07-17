@@ -70,11 +70,13 @@ class AioHttpFetcher(HttpFetcher):
         """Lazy-initialize the client session."""
         if self._session is None or self._session.closed:
             timeout = aiohttp.ClientTimeout(total=15.0)
+            connector = aiohttp.TCPConnector(ssl=False)
             self._session = aiohttp.ClientSession(
                 timeout=timeout,
                 headers={
                     "User-Agent": "VyomaCastBot/1.0 (+https://github.com/vyomacast/vyomacast)"
                 },
+                connector=connector,
             )
         return self._session
 

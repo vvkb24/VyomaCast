@@ -44,15 +44,15 @@ RESET = "\033[0m"
 
 
 def ok(msg: str) -> None:
-    print(f"  {GREEN}✓{RESET} {msg}")
+    print(f"  {GREEN}[PASS]{RESET} {msg}")
 
 
 def fail(msg: str) -> None:
-    print(f"  {RED}✗{RESET} {msg}")
+    print(f"  {RED}[FAIL]{RESET} {msg}")
 
 
 def info(msg: str) -> None:
-    print(f"  {CYAN}ℹ{RESET} {msg}")
+    print(f"  {CYAN}[INFO]{RESET} {msg}")
 
 
 def header(msg: str) -> None:
@@ -213,9 +213,9 @@ async def main() -> int:
     """Run all health checks and return exit code."""
     from src.config import settings
 
-    print(f"\n{BOLD}{'═' * 50}{RESET}")
+    print(f"\n{BOLD}{'=' * 50}{RESET}")
     print(f"{BOLD}  VyomaCast Infrastructure Health Check{RESET}")
-    print(f"{BOLD}{'═' * 50}{RESET}")
+    print(f"{BOLD}{'=' * 50}{RESET}")
 
     results: dict[str, bool] = {}
 
@@ -235,7 +235,7 @@ async def main() -> int:
     results["nats"] = await check_nats(settings.nats_url)
 
     # Summary
-    print(f"\n{BOLD}{'─' * 50}{RESET}")
+    print(f"\n{BOLD}{'-' * 50}{RESET}")
     all_healthy = all(results.values())
 
     for service, healthy in results.items():
@@ -243,11 +243,11 @@ async def main() -> int:
         print(f"  {service:12s} : {status}")
 
     if all_healthy:
-        print(f"\n{GREEN}{BOLD}  All services healthy ✓{RESET}\n")
+        print(f"\n{GREEN}{BOLD}  All services healthy [PASS]{RESET}\n")
         return 0
     else:
         failed = [s for s, h in results.items() if not h]
-        print(f"\n{RED}{BOLD}  Failed services: {', '.join(failed)} ✗{RESET}")
+        print(f"\n{RED}{BOLD}  Failed services: {', '.join(failed)} [FAIL]{RESET}")
         print(f"  Run: {YELLOW}docker compose up -d{RESET} and try again.\n")
         return 1
 

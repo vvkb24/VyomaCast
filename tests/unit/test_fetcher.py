@@ -86,9 +86,14 @@ async def test_successful_fetch_and_extract_flow(
     assert mock_bus.publish.call_args_list[0][0][0] == EventType.EXTRACT_COMPLETED
     assert mock_bus.publish.call_args_list[1][0][0] == EventType.EXTRACT_COMPLETED
     
-    # Verify one of the payloads payload
+    # Verify payloads in any order
+    urls = {
+        mock_bus.publish.call_args_list[0][0][1].payload["url"],
+        mock_bus.publish.call_args_list[1][0][1].payload["url"],
+    }
+    assert urls == {"http://test.com/article1", "http://test.com/article2"}
+    
     envelope = mock_bus.publish.call_args_list[0][0][1]
-    assert envelope.payload["url"] == "http://test.com/article1"
     assert envelope.payload["content"] == valid_extract["text"]
 
 

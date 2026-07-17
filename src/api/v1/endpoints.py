@@ -56,7 +56,7 @@ class SearchQuery(BaseModel):
 @router.get("/articles", response_model=list[SafeArticleResponse])
 async def list_articles(
     article_repo: ArticleRepoDep,
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(20, ge=1, le=1000),
     offset: int = Query(0, ge=0),
 ):
     """Retrieve paginated recent articles."""
@@ -112,7 +112,7 @@ async def search_articles(
 @router.get("/clusters", response_model=list[SafeClusterResponse])
 async def list_clusters(
     cluster_repo: ClusterRepoDep,
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(20, ge=1, le=1000),
     offset: int = Query(0, ge=0),
 ):
     """Retrieve paginated active clusters."""
