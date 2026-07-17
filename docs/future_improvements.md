@@ -33,3 +33,9 @@ This document outlines structural and functional improvements to enhance the Vyo
 * **Improvement**: Implement auto-scaling workers.
   * **Design**: Deploy workers as Docker container instances inside Kubernetes or ECS, and scale the replica count dynamically based on the queue depth of NATS subjects (e.g. `fetch.>` and `extract.>`).
   * **Benefit**: Keeps latency flat and prevents queue starvation.
+
+## 6. Article Cluster Linking persistence Fix
+* **Problem**: When the clustering engine processes an article and binds it to a cluster, the `article.cluster_id` update doesn't persist properly back to the `articles` table in PostgreSQL because the ORM update isn't cascading/saving the modified model instance.
+* **Improvement**: Fix the article persistence in `ClusterService._save_transaction`.
+  * **Design**: Force an explicit `UPDATE articles SET cluster_id = $1 WHERE id = $2` or verify the SQLAlchemy `session.commit()` recognizes the state change on the retrieved `article` instance.
+  * **Benefit**: Ensures the data model retains strict referential integrity and makes external data analysis/export via SQL joins possible.
