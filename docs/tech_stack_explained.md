@@ -20,15 +20,16 @@ Each worker subscribes to a specific NATS subject (like `article.unique` or `art
 NATS maintains a durable log of messages per subject (called a stream). Each worker has a consumer that checkpoints its position in the log. A message is only removed from the log once the worker sends an explicit ACK (acknowledgement). If a worker sends NAK, the message is requeued. If a message fails 5 times, it is sent to a Dead Letter Queue to prevent infinite loops.
 
 ### Where it appears in the data flow
-```
-Feed Manager     --(FEED_ITEMS_NEW)-->      NATS
-NATS             --(FEED_ITEMS_NEW)-->      Fetcher Worker
-Fetcher Worker   --(EXTRACT_COMPLETED)-->   NATS
-NATS             --(EXTRACT_COMPLETED)-->   Dedup Worker
-Dedup Worker     --(ARTICLE_UNIQUE)-->      NATS
-NATS             --(ARTICLE_UNIQUE)-->      Cluster Worker
-Cluster Worker   --(ARTICLE_CLUSTERED)-->   NATS
-NATS             --(ARTICLE_CLUSTERED)-->   Notifier Worker
+```mermaid
+flowchart LR
+    A[Feed Manager] -->|FEED_ITEMS_NEW| B((NATS))
+    B -->|FEED_ITEMS_NEW| C[Fetcher Worker]
+    C -->|EXTRACT_COMPLETED| B
+    B -->|EXTRACT_COMPLETED| D[Dedup Worker]
+    D -->|ARTICLE_UNIQUE| B
+    B -->|ARTICLE_UNIQUE| E[Cluster Worker]
+    E -->|ARTICLE_CLUSTERED| B
+    B -->|ARTICLE_CLUSTERED| F[Notifier Worker]
 ```
 
 ---
@@ -50,9 +51,15 @@ Two problems arise when processing thousands of articles per hour: (1) checking 
 Redis stores data as key-value pairs entirely in memory. Its speed comes from the fact that RAM access is roughly 100,000 times faster than a disk read. For SimHash sliding windows, Redis uses Sorted Sets (ZSets), which allow range queries in O(log N) time. All data evicts automatically based on TTL so Redis never fills up with stale fingerprints.
 
 ### Where it appears in the data flow
-```
-Dedup Worker   --> Redis (Check SimHash)                --> Discard (Duplicate) or Continue (Unique)
-Cluster Worker --> Redis (Fetch active cluster centroids) --> Compare and Upsert
+```mermaid
+flowchart LR
+    A[Dedup Worker] -->|Check SimHash| B[(Redis)]
+    B -.->|Match| C[Discard as Duplicate]
+    B -.->|No Match| D[Continue as Unique]
+    
+    E[Cluster Worker] -->|Fetch active centroids| B
+    B -.->|Centroids| E
+    E -->|Compare and Upsert| F[(PostgreSQL)]
 ```
 
 ---
@@ -80,10 +87,14 @@ The `<=>` operator is the cosine distance function provided by pgvector. The res
 A vector embedding is a list of 384 floating-point numbers that represents the semantic position of a piece of text in a high-dimensional mathematical space. Two articles about the same topic will have vectors that are geometrically close to each other. PostgreSQL computes the angle between two vectors (cosine similarity) to determine how related they are. A similarity above 0.92 means they belong to the same story cluster.
 
 ### Where it appears in the data flow
-```
-Cluster Worker --> pgvector (Cosine similarity search) --> Find nearest cluster
-Cluster Worker --> PostgreSQL (Upsert article + cluster) --> Permanent storage
-FastAPI        --> PostgreSQL (Read clusters/articles)   --> REST API response
+```mermaid
+flowchart LR
+    A[Cluster Worker] -->|Cosine similarity search| B[(pgvector)]
+    B -.->|Nearest cluster| A
+    A -->|Upsert article + cluster| C[(PostgreSQL)]
+    
+    D[FastAPI] -->|Read clusters/articles| C
+    C -.->|REST API response| D
 ```
 
 ---
@@ -106,11 +117,14 @@ When the Dedup Worker receives an article that passes the SimHash check (meaning
 The model was trained on hundreds of millions of sentence pairs to understand which sentences are semantically similar. Internally it uses a 6-layer BERT-like transformer architecture. Words in a sentence attend to each other, so the final 384-number output captures the relationships between all the words, not just their individual meanings. The output vector is normalized so that cosine distance (the angle between two vectors) becomes the correct measure of similarity.
 
 ### Where it appears in the data flow
-```
-Dedup Worker   --> all-MiniLM-L6-v2 (Generate 384-dim embedding)
-               --> pgvector cosine check (Semantic duplicate?)
-               --> ARTICLE_UNIQUE published to NATS
-Cluster Worker --> pgvector cosine search (Which cluster is closest?)
+```mermaid
+flowchart LR
+    A[Dedup Worker] -->|Title + Summary| B(all-MiniLM-L6-v2)
+    B -.->|384-dim embedding| A
+    A -->|Semantic duplicate check| C[(pgvector)]
+    A -->|ARTICLE_UNIQUE| D((NATS))
+    
+    E[Cluster Worker] -->|Which cluster is closest?| C
 ```
 
 ---
@@ -135,10 +149,15 @@ A 20-second server-side ping loop keeps all WebSocket connections alive indefini
 FastAPI uses Python async/await syntax throughout. When a browser connects via WebSocket, the connection is held open as a coroutine: it does not block other requests. When the Notifier Worker wants to broadcast a new cluster update, it iterates over all active WebSocket connections in the hub and sends the JSON payload to each one. Pydantic models validate every incoming and outgoing payload automatically, rejecting malformed data before it ever touches the database.
 
 ### Where it appears in the data flow
-```
-Browser / Client --> GET /api/v1/clusters  --> FastAPI --> PostgreSQL --> JSON response
-Browser          --> WS /ws/updates        --> FastAPI WebSocket Hub (persistent connection)
-Notifier Worker  --> WebSocket Hub         --> Pushes JSON frame to all connected browsers
+```mermaid
+flowchart LR
+    A[Browser / Client] -->|GET /api/v1/clusters| B[FastAPI]
+    B -->|Query| C[(PostgreSQL)]
+    C -.->|JSON response| B
+    B -.->|Return JSON| A
+    
+    D[Browser] <-->|WS /ws/updates| E[FastAPI WebSocket Hub]
+    F[Notifier Worker] -->|Push JSON frame| E
 ```
 
 ---
@@ -158,8 +177,11 @@ On page load, the browser opens a WebSocket connection to `ws://localhost:8000/w
 WebSocket is a protocol upgrade from HTTP. The browser first sends a standard HTTP request with an `Upgrade: websocket` header. The server accepts, and from that point on, the TCP connection stays open. VyomaCast uses a server-to-client-only pattern: only the server pushes updates; the browser only listens and renders.
 
 ### Where it appears in the data flow
-```
-NATS --> Notifier Worker --> FastAPI WebSocket Hub --> Browser Dashboard
+```mermaid
+flowchart LR
+    A((NATS)) -->|article.clustered| B[Notifier Worker]
+    B -->|WebSocket Push| C[FastAPI WebSocket Hub]
+    C -->|Live JSON update| D[Browser Dashboard]
 ```
 
 ---
@@ -176,9 +198,13 @@ Using raw SQL strings in Python makes code fragile and hard to maintain. SQLAlch
 The Article and Cluster models are defined as SQLAlchemy ORM classes with their column types and relationships. When the Cluster Worker upserts data, it uses an SQLAlchemy session to run an atomic `INSERT ... ON CONFLICT DO UPDATE` with version-guarded optimistic concurrency control. The version column prevents race conditions when two workers try to update the same cluster simultaneously.
 
 ### Where it appears in the data flow
-```
-All Workers and FastAPI --> SQLAlchemy Session --> PostgreSQL
-Schema changes          --> Alembic migration  --> alembic upgrade head
+```mermaid
+flowchart LR
+    A[All Workers & FastAPI] -->|ORM Session| B(SQLAlchemy)
+    B -->|SQL Queries| C[(PostgreSQL)]
+    
+    D[Schema Changes] -->|Alembic Migration| E(alembic upgrade head)
+    E -->|Apply schema| C
 ```
 
 ---
